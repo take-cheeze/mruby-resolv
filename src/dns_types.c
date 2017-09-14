@@ -100,7 +100,7 @@ mrb_value mrb_dns_ctype2query(mrb_state *mrb, mrb_dns_pkt_t *pkt) {
         mrb_ary_push(mrb, authorities, v);
     }
 
-    for (int i; i < pkt->header->arcount; i++){
+    for (int i = 0; i < pkt->header->arcount; i++){
         mrb_value v = mrb_dns_ctype2rdata(mrb, pkt->additionals[i]);
         mrb_ary_push(mrb, additionals, v);
     }
@@ -119,7 +119,7 @@ mrb_value mrb_dns_ctype2query(mrb_state *mrb, mrb_dns_pkt_t *pkt) {
 
 mrb_dns_pkt_t *mrb_dns_query2cpkt(mrb_state *mrb, mrb_value q) {
     struct RClass *qcls = NULL;
-    mrb_value header, questions, answers, authorities, addtionals;
+    mrb_value header, questions, answers, authorities, additionals;
     mrb_dns_pkt_t *pkt = NULL;
 
     qcls = mrb_class_get_under(mrb, mrb_class_get_under(mrb, mrb_class_get(mrb, "Resolv"), "DNS"),
@@ -139,9 +139,9 @@ mrb_dns_pkt_t *mrb_dns_query2cpkt(mrb_state *mrb, mrb_value q) {
     questions   = mrb_iv_get(mrb, q, mrb_intern_lit(mrb, "@questions"));
     answers     = mrb_iv_get(mrb, q, mrb_intern_lit(mrb, "@answers"));
     authorities = mrb_iv_get(mrb, q, mrb_intern_lit(mrb, "@authorities"));
-    addtionals  = mrb_iv_get(mrb, q, mrb_intern_lit(mrb, "@addtionals"));
+    additionals  = mrb_iv_get(mrb, q, mrb_intern_lit(mrb, "@additionals"));
     if (mrb_nil_p(header) && mrb_nil_p(questions) && mrb_nil_p(answers) && mrb_nil_p(authorities) &&
-        mrb_nil_p(addtionals)) {
+        mrb_nil_p(additionals)) {
         mrb_raise(mrb, E_RUNTIME_ERROR, "not all iv is present");
         return NULL;
     }
@@ -194,7 +194,7 @@ mrb_dns_pkt_t *mrb_dns_query2cpkt(mrb_state *mrb, mrb_value q) {
         (mrb_dns_rdata_t **)mrb_malloc(mrb, sizeof(mrb_dns_rdata_t *) * pkt->header->arcount);
     for (int i = 0; i < pkt->header->arcount; i++) {
         mrb_value ar;
-        ar = mrb_ary_entry(addtionals, i);
+        ar = mrb_ary_entry(additionals, i);
         if (mrb_nil_p(ar)) {
             mrb_raise(mrb, E_RUNTIME_ERROR, "invalid arcount in header");
             return NULL;
