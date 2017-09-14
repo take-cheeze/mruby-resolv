@@ -323,21 +323,18 @@ int mrb_dns_codec_get_uint16be(mrb_state *mrb, mrb_dns_get_state *getter, uint16
     return 0;
 }
 
-int mrb_dns_codec_get_str(mrb_state *mrb, mrb_dns_get_state *getter, uint64_t size, char *dist) {
+char* mrb_dns_codec_get_str(mrb_state *mrb, mrb_dns_get_state *getter, uint64_t size) {
     char *d = NULL;
-    mrb_assert(dist == NULL);
-    d = (char *)mrb_malloc(mrb, size);
-
     if (getter->pos + size > getter->end) {
         mrb_raise(mrb, E_RUNTIME_ERROR, "mrb_dns_codec_get_str: reach end of buffer");
-        return -1;
+        return NULL;
     }
+
+    d = (char *)mrb_malloc(mrb, size);
     memcpy(d, getter->buff + getter->pos, size);
-
     getter->pos += size;
-    dist = d;
 
-    return 0;
+    return d;
 }
 
 /**
@@ -453,9 +450,7 @@ static int mrb_dns_name_append(mrb_state *mrb, mrb_dns_name_t *name, char *node,
 
 int mrb_dns_codec_get_name(mrb_state *mrb, mrb_dns_get_state *getter, mrb_dns_name_t *ret) {
     mrb_dns_name_t *name = NULL;
-    char *node           = NULL;
     uint8_t len          = 0;
-    name                 = NULL;
     // TODO: compression-aware
     mrb_assert(ret == NULL);
 
@@ -465,12 +460,14 @@ int mrb_dns_codec_get_name(mrb_state *mrb, mrb_dns_get_state *getter, mrb_dns_na
 
     for (mrb_dns_codec_get_uint8(mrb, getter, &len); len > 0;
          mrb_dns_codec_get_uint8(mrb, getter, &len)) {
+        char *node = NULL;
         if (0xC0 & len) {
             // TODO: implement compression
             mrb_raise(mrb, E_NOTIMP_ERROR, "mrb_dns_codec_get_name: compression");
             break;
         }
-        if (mrb_dns_codec_get_str(mrb, getter, len, node))
+        node = mrb_dns_codec_get_str(mrb, getter, len);
+        if (!node)
             return -1;
         if (mrb_dns_name_append(mrb, name, node, len))
             return -1;
@@ -508,12 +505,24 @@ int mrb_dns_codec_get_rdata(mrb_state *mrb, mrb_dns_get_state *getter, mrb_dns_r
 
     rdata = (mrb_dns_rdata_t *)malloc(sizeof(mrb_dns_rdata_t));
 
-    mrb_dns_codec_get_name(mrb, getter, rdata->name);
-    mrb_dns_codec_get_uint16be(mrb, getter, &rdata->typ);
-    mrb_dns_codec_get_uint16be(mrb, getter, &rdata->klass);
-    mrb_dns_codec_get_uint16be(mrb, getter, &rdata->ttl);
-    mrb_dns_codec_get_uint16be(mrb, getter, &rdata->rlength);
-    mrb_dns_codec_get_str(mrb, getter, rdata->rlength, (char *)rdata->rdata);
+    if(mrb_dns_codec_get_name(mrb, getter, rdata->name)){
+        return -1;
+    }
+    if(mrb_dns_codec_get_uint16be(mrb, getter, &rdata->typ)){
+        return -1;
+    }
+    if(mrb_dns_codec_get_uint16be(mrb, getter, &rdata->klass)){
+        return -1;
+    }
+    if(mrb_dns_codec_get_uint16be(mrb, getter, &rdata->ttl)){
+        return -1;
+    }
+    if(mrb_dns_codec_get_uint16be(mrb, getter, &rdata->rlength)){
+        return -1;
+    }
+    rdata->rdata = (uint8_t *)mrb_dns_codec_get_str(mrb, getter, rdata->rlength);
+    if(!rdata->rdata){
+    }
     ret = rdata;
     return 0;
 }
