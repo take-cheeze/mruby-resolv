@@ -485,7 +485,7 @@ int mrb_dns_codec_get_name(mrb_state *mrb, mrb_dns_get_state *getter, mrb_dns_na
             return -1;
         }
         if(!node){
-            mrb_raise(mrb, E_RUNTIME_ERROR, "mrb_dns_codec_get_name: null");
+            mrb_raise(mrb, E_RUNTIME_ERROR, "mrb_dns_codec_get_name: return buffe is null");
         }
         if (mrb_dns_name_append(mrb, name, node, len)) {
             return -1;
