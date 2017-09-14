@@ -342,7 +342,7 @@ char* mrb_dns_codec_get_str(mrb_state *mrb, mrb_dns_get_state *getter, uint64_t 
  **/
 
 
-int mrb_dns_codec_get_header(mrb_state *mrb, mrb_dns_get_state *getter, mrb_dns_header_t *ret) {
+mrb_dns_header_t *mrb_dns_codec_get_header(mrb_state *mrb, mrb_dns_get_state *getter) {
     uint8_t w1 = 0, w2 = 0;
     mrb_dns_header_t *hdr = NULL;
     // TODO: assertion and validation
@@ -351,13 +351,13 @@ int mrb_dns_codec_get_header(mrb_state *mrb, mrb_dns_get_state *getter, mrb_dns_
     hdr = (mrb_dns_header_t *)malloc(sizeof(mrb_dns_header_t));
     if (mrb_dns_codec_get_uint16be(mrb, getter, &hdr->id)) {
         mrb_raise(mrb, E_RUNTIME_ERROR, "header(id) get failure");
-        return -1;
+        return NULL;
     }
 
     // a octet as (QR | OPCODE | AA | TC |RD)
     if (mrb_dns_codec_get_uint8(mrb, getter, &w1)) {
         mrb_raise(mrb, E_RUNTIME_ERROR, "header(QR|OPCODE|AA|TC|RD) get failure");
-        return -1;
+        return NULL;
     };
     if (w1 & 0x80)
         hdr->qr = 1;
@@ -385,7 +385,7 @@ int mrb_dns_codec_get_header(mrb_state *mrb, mrb_dns_get_state *getter, mrb_dns_
     // a octet as (RA| Z|AD|CD| RCODE)
     if (mrb_dns_codec_get_uint8(mrb, getter, &w2)) {
         mrb_raise(mrb, E_RUNTIME_ERROR, "header(RA|Z|RCODE) get failure");
-        return -1;
+        return NULL;
     }
     if (w2 & 0x80)
         hdr->ra = 1;
@@ -396,24 +396,23 @@ int mrb_dns_codec_get_header(mrb_state *mrb, mrb_dns_get_state *getter, mrb_dns_
 
     if (mrb_dns_codec_get_uint16be(mrb, getter, &hdr->qdcount)) {
         mrb_raise(mrb, E_RUNTIME_ERROR, "header(QDCOUNT) get failure");
-        return -1;
+        return NULL;
     }
 
     if (mrb_dns_codec_get_uint16be(mrb, getter, &hdr->ancount)) {
         mrb_raise(mrb, E_RUNTIME_ERROR, "header(ANCOUNT) get failure");
-        return -1;
+        return NULL;
     }
     if (mrb_dns_codec_get_uint16be(mrb, getter, &hdr->nscount)) {
         mrb_raise(mrb, E_RUNTIME_ERROR, "header(NSCOUNT) get failure");
-        return -1;
+        return NULL;
     }
     if (mrb_dns_codec_get_uint16be(mrb, getter, &hdr->arcount)) {
         mrb_raise(mrb, E_RUNTIME_ERROR, "header(ARCOUNT) get failure");
-        return -1;
+        return NULL;
     }
 
-    ret = hdr;
-    return 0;
+    return hdr;
 }
 
 static int mrb_dns_name_append(mrb_state *mrb, mrb_dns_name_t *name, char *node, size_t len) {
@@ -448,11 +447,10 @@ static int mrb_dns_name_append(mrb_state *mrb, mrb_dns_name_t *name, char *node,
     return 0;
 }
 
-int mrb_dns_codec_get_name(mrb_state *mrb, mrb_dns_get_state *getter, mrb_dns_name_t *ret) {
+mrb_dns_name_t* mrb_dns_codec_get_name(mrb_state *mrb, mrb_dns_get_state *getter){
     mrb_dns_name_t *name = NULL;
     uint8_t len          = 0;
     // TODO: compression-aware
-    mrb_assert(ret == NULL);
 
     name       = (mrb_dns_name_t *)mrb_malloc(mrb, sizeof(mrb_dns_name_t));
     name->name = NULL;
@@ -468,77 +466,59 @@ int mrb_dns_codec_get_name(mrb_state *mrb, mrb_dns_get_state *getter, mrb_dns_na
         }
         node = mrb_dns_codec_get_str(mrb, getter, len);
         if (!node)
-            return -1;
+            return NULL;
         if (mrb_dns_name_append(mrb, name, node, len))
-            return -1;
+            return NULL;
     }
-    ret = name;
-    return 0;
+    return name;
 }
 
-int mrb_dns_codec_get_question(mrb_state *mrb, mrb_dns_get_state *getter,
-                               mrb_dns_question_t *question) {
+mrb_dns_question_t * mrb_dns_codec_get_question(mrb_state *mrb, mrb_dns_get_state *getter){
     mrb_dns_question_t *q = NULL;
-    mrb_assert(question == NULL);
     q         = (mrb_dns_question_t *)mrb_malloc(mrb, sizeof(mrb_dns_question_t));
     q->qname  = NULL;
     q->qtype  = 0;
     q->qklass = 0;
-    if (mrb_dns_codec_get_name(mrb, getter, q->qname)) {
-        return -1;
+    if (!(q->qname = mrb_dns_codec_get_name(mrb, getter))){
+        return NULL;
     }
     if (mrb_dns_codec_get_uint16be(mrb, getter, &q->qtype)) {
-        return -1;
+        return NULL;
     }
     if (mrb_dns_codec_get_uint16be(mrb, getter, &q->qklass)) {
-        return -1;
+        return NULL;
     }
-
-    question = q;
-    return 0;
+    return q;
 }
 
-int mrb_dns_codec_get_rdata(mrb_state *mrb, mrb_dns_get_state *getter, mrb_dns_rdata_t *ret) {
-    mrb_dns_rdata_t *rdata = NULL;
-    if (ret != NULL)
-        return -1;
+mrb_dns_rdata_t* mrb_dns_codec_get_rdata(mrb_state *mrb, mrb_dns_get_state *getter) {
+    mrb_dns_rdata_t *rdata = (mrb_dns_rdata_t *)malloc(sizeof(mrb_dns_rdata_t));
 
-    rdata = (mrb_dns_rdata_t *)malloc(sizeof(mrb_dns_rdata_t));
-
-    if(mrb_dns_codec_get_name(mrb, getter, rdata->name)){
-        return -1;
+    if(!(rdata->name = mrb_dns_codec_get_name(mrb, getter))){
+        return NULL;
     }
     if(mrb_dns_codec_get_uint16be(mrb, getter, &rdata->typ)){
-        return -1;
+        return NULL;
     }
     if(mrb_dns_codec_get_uint16be(mrb, getter, &rdata->klass)){
-        return -1;
+        return NULL;
     }
     if(mrb_dns_codec_get_uint16be(mrb, getter, &rdata->ttl)){
-        return -1;
+        return NULL;
     }
     if(mrb_dns_codec_get_uint16be(mrb, getter, &rdata->rlength)){
-        return -1;
+        return NULL;
     }
     rdata->rdata = (uint8_t *)mrb_dns_codec_get_str(mrb, getter, rdata->rlength);
-    if(!rdata->rdata){
-    }
-    ret = rdata;
-    return 0;
+    return rdata;
 }
 
-int mrb_dns_codec_get(mrb_state *mrb, mrb_dns_get_state *getter, mrb_dns_pkt_t *ret) {
-    mrb_dns_pkt_t *pkt = NULL;
-    // TODO: assertion
-    if (ret != NULL) {
-        mrb_raise(mrb, E_RUNTIME_ERROR, "implementation error");
-        return -1;
-    }
-    pkt = (mrb_dns_pkt_t *)mrb_malloc(mrb, sizeof(mrb_dns_pkt_t));
+mrb_dns_pkt_t * mrb_dns_codec_get(mrb_state *mrb, mrb_dns_get_state *getter){
+    mrb_dns_pkt_t *pkt = (mrb_dns_pkt_t *)mrb_malloc(mrb, sizeof(mrb_dns_pkt_t));
 
-    if (mrb_dns_codec_get_header(mrb, getter, pkt->header)) {
+    if (!(pkt->header = mrb_dns_codec_get_header(mrb, getter))){
         mrb_raise(mrb, E_RUNTIME_ERROR, "header codec failure");
-        return -1;
+        return NULL;
     };
 
     pkt->questions =
@@ -550,19 +530,26 @@ int mrb_dns_codec_get(mrb_state *mrb, mrb_dns_get_state *getter, mrb_dns_pkt_t *
     pkt->additionals =
         (mrb_dns_rdata_t **)mrb_malloc(mrb, sizeof(mrb_dns_rdata_t *) * pkt->header->arcount);
 
-    for (int i = 0; i < pkt->header->qdcount; i++)
-        mrb_dns_codec_get_question(mrb, getter, pkt->questions[i]);
+    // TODO: validation
+    for (int i = 0; i < pkt->header->qdcount; i++){
+        if(!(pkt->questions[i] = mrb_dns_codec_get_question(mrb, getter)))
+            return NULL;
+    }
 
-    for (int i = 0; i < pkt->header->ancount; i++)
-        mrb_dns_codec_get_rdata(mrb, getter, pkt->answers[i]);
+    for (int i = 0; i < pkt->header->ancount; i++){
+        if(!(pkt->answers[i] = mrb_dns_codec_get_rdata(mrb, getter)))
+            return NULL;
+    }
 
-    for (int i = 0; i < pkt->header->nscount; i++)
-        mrb_dns_codec_get_rdata(mrb, getter, pkt->authorities[i]);
+    for (int i = 0; i < pkt->header->nscount; i++){
+        if(!(pkt->authorities[i] = mrb_dns_codec_get_rdata(mrb, getter)))
+            return NULL;
+    }
 
-    for (int i = 0; i < pkt->header->arcount; i++)
-        mrb_dns_codec_get_rdata(mrb, getter, pkt->additionals[i]);
+    for (int i = 0; i < pkt->header->arcount; i++){
+        if(!(pkt->additionals[i] = mrb_dns_codec_get_rdata(mrb, getter)))
+        return NULL;
+    }
 
-    ret = pkt;
-
-    return 0;
+    return pkt;
 }

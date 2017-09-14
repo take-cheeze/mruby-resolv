@@ -44,7 +44,7 @@ assert("Resolv::DNS::Codec#encode") do
          0 |  # Z
          Resolv::DNS::Query::Header::RCODE::NoError)
 
-  res = [0x42, 00,  # Id
+  res = [0x00, 0x42,  # Id
          w1,
          w2,
          0x00, 0x00, # QDCOUNT

@@ -41,6 +41,6 @@ typedef struct mrb_dns_get_s {
 
 mrb_dns_get_state *mrb_dns_codec_get_open(mrb_state *, uint8_t *, size_t len) ;
 int mrb_dns_codec_get_close(mrb_state *, mrb_dns_get_state *) ;
-int mrb_dns_codec_get(mrb_state *, mrb_dns_get_state *, mrb_dns_pkt_t *) ;
+mrb_dns_pkt_t *mrb_dns_codec_get(mrb_state *, mrb_dns_get_state *);
 
 #endif

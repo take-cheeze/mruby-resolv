@@ -38,7 +38,6 @@ static mrb_value mrb_dns_codec_decode(mrb_state *mrb, mrb_value self) {
     mrb_dns_get_state *getter = NULL;
     mrb_dns_pkt_t *pkt        = NULL;
     uint8_t *b                = NULL;
-    uint8_t ret;
     mrb_int len;
 
     mrb_get_args(mrb, "o", &buff);
@@ -58,8 +57,8 @@ static mrb_value mrb_dns_codec_decode(mrb_state *mrb, mrb_value self) {
         mrb_raise(mrb, E_RUNTIME_ERROR, "fail memory allocation");
         return mrb_nil_value();
     }
-    ret = mrb_dns_codec_get(mrb, getter, pkt);
-    if (ret) {
+    pkt = mrb_dns_codec_get(mrb, getter);
+    if (!pkt) {
         mrb_raise(mrb, E_RUNTIME_ERROR, "fail decode"); // TODO: therea are prefer exception
         return mrb_nil_value();
     }
