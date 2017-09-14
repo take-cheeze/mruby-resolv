@@ -59,6 +59,7 @@ typedef struct mrb_dns_pkt_s {
  **/
 
 mrb_dns_pkt_t *mrb_dns_query2cpkt(mrb_state *, mrb_value);
+mrb_value mrb_dns_ctype2query(mrb_state *, mrb_dns_pkt_t*);
 
 mrb_dns_header_t *mrb_dns_header_new(mrb_state *mrb, uint16_t id, unsigned qr, unsigned opcode,
                                        unsigned aa, unsigned tc, unsigned rd, unsigned ra,

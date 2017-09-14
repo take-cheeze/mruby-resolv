@@ -8,6 +8,114 @@
 #include <stdint.h>
 #include <string.h>
 
+#define MRB_SECTION_CLASS_GET(mrb, name)                                                           \
+    mrb_class_get_under(                                                                           \
+        (mrb),                                                                                     \
+        mrb_class_get_under(                                                                       \
+            (mrb), mrb_class_get_under((mrb), mrb_class_get((mrb), "Resolv"), "DNS"), "Query"),    \
+        (name));
+
+static mrb_value mrb_dns_ctype2header(mrb_state *mrb, mrb_dns_header_t *hdr) {
+    struct RClass *header_class = NULL;
+    const mrb_int argc          = 12;
+    mrb_value *argv             = NULL;
+    mrb_assert(hdr != NULL);
+    header_class = MRB_SECTION_CLASS_GET(mrb, "Header");
+
+    argv     = (mrb_value *)mrb_malloc(mrb, sizeof(mrb_value) * argc);
+    argv[0]  = mrb_fixnum_value(hdr->id);
+    argv[1]  = mrb_fixnum_value(hdr->qr);
+    argv[2]  = mrb_fixnum_value(hdr->opcode);
+    argv[3]  = mrb_fixnum_value(hdr->aa);
+    argv[4]  = mrb_fixnum_value(hdr->tc);
+    argv[5]  = mrb_fixnum_value(hdr->rd);
+    argv[6]  = mrb_fixnum_value(hdr->ra);
+    argv[7]  = mrb_fixnum_value(hdr->rcode);
+    argv[8]  = mrb_fixnum_value(hdr->qdcount);
+    argv[9]  = mrb_fixnum_value(hdr->ancount);
+    argv[10] = mrb_fixnum_value(hdr->nscount);
+    argv[11] = mrb_fixnum_value(hdr->arcount);
+    return mrb_obj_new(mrb, header_class, argc, argv);
+}
+
+static mrb_value mrb_dns_ctype2question(mrb_state *mrb, mrb_dns_question_t *q) {
+    struct RClass *question_class = NULL;
+    mrb_value *argv               = NULL;
+    const mrb_int argc            = 3;
+    mrb_assert(q != NULL);
+    question_class = MRB_SECTION_CLASS_GET(mrb, "Question");
+
+    argv    = (mrb_value *)mrb_malloc(mrb, sizeof(mrb_value) * argc);
+    argv[0] = mrb_str_new_cstr(mrb, q->qname->name);
+    argv[1] = mrb_fixnum_value(q->qklass);
+    argv[2] = mrb_fixnum_value(q->qtype);
+    return mrb_obj_new(mrb, question_class, argc, argv);
+}
+
+mrb_value mrb_dns_ctype2rdata(mrb_state *mrb, mrb_dns_rdata_t *r) {
+    struct RClass *rdata_class = NULL;
+    mrb_value *argv            = NULL;
+    const mrb_int argc         = 6;
+    mrb_assert(r != NULL);
+    rdata_class = MRB_SECTION_CLASS_GET(mrb, "RData");
+
+    argv    = mrb_malloc(mrb, sizeof(mrb_value) * argc);
+    argv[0] = mrb_str_new_cstr(mrb, r->name->name);
+    argv[1] = mrb_fixnum_value(r->klass);
+    argv[2] = mrb_fixnum_value(r->typ);
+    argv[3] = mrb_fixnum_value(r->ttl);
+    argv[4] = mrb_fixnum_value(r->rlength);
+    // TODO: str with capa
+    argv[5] = mrb_str_new_capa(mrb, r->rlength);
+    memcpy(RSTRING_PTR(argv[5]), r->rdata, r->rlength);
+    return mrb_obj_new(mrb, rdata_class, argc, argv);
+}
+
+mrb_value mrb_dns_ctype2query(mrb_state *mrb, mrb_dns_pkt_t *pkt) {
+    struct RClass *query_class = NULL;
+    mrb_value header, questions, answers, authorities, additionals, *argv = NULL;
+    const mrb_int argc = 5;
+
+    mrb_assert(pkt != NULL);
+
+    questions   = mrb_ary_new(mrb);
+    answers     = mrb_ary_new(mrb);
+    authorities = mrb_ary_new(mrb);
+    additionals = mrb_ary_new(mrb);
+
+    header = mrb_dns_ctype2header(mrb, pkt->header);
+
+    for (int i = 0; i < pkt->header->qdcount; i++){
+        mrb_value v =mrb_dns_ctype2question(mrb, pkt->questions[i]);
+        mrb_ary_push(mrb, questions, v);
+    }
+
+    for (int i = 0; i < pkt->header->ancount; i++){
+        mrb_value v = mrb_dns_ctype2rdata(mrb, pkt->answers[i]);
+        mrb_ary_push(mrb, answers, v);
+    }
+
+    for (int i = 0; i < pkt->header->nscount; i++){
+        mrb_value v = mrb_dns_ctype2rdata(mrb, pkt->authorities[i]);
+        mrb_ary_push(mrb, authorities, v);
+    }
+
+    for (int i; i < pkt->header->arcount; i++){
+        mrb_value v = mrb_dns_ctype2rdata(mrb, pkt->additionals[i]);
+        mrb_ary_push(mrb, additionals, v);
+    }
+
+    query_class = mrb_class_get_under(
+        mrb, mrb_class_get_under(mrb, mrb_class_get(mrb, "Resolv"), "DNS"), "Query");
+
+    argv    = (mrb_value *)mrb_malloc(mrb, sizeof(mrb_value) * argc);
+    argv[0] = header;
+    argv[1] = questions;
+    argv[2] = answers;
+    argv[3] = authorities;
+    argv[4] = additionals;
+    return mrb_obj_new(mrb, query_class, argc, argv);
+}
 
 mrb_dns_pkt_t *mrb_dns_query2cpkt(mrb_state *mrb, mrb_value q) {
     struct RClass *qcls = NULL;
@@ -97,6 +205,7 @@ mrb_dns_pkt_t *mrb_dns_query2cpkt(mrb_state *mrb, mrb_value q) {
 
     return pkt;
 }
+
 
 mrb_dns_header_t *mrb_dns_header_new(mrb_state *mrb, uint16_t id, unsigned qr, unsigned opcode,
                                      unsigned aa, unsigned tc, unsigned rd, unsigned ra,
@@ -367,7 +476,7 @@ mrb_dns_rdata_t *mrb_dns_rdata2ctype(mrb_state *mrb, mrb_value obj) {
     r->ttl     = mrb_fixnum(ttl);
     r->rlength = mrb_fixnum(rlength);
     // TODO: String with capa
-    r->rdata   = (uint8_t *)mrb_str_to_cstr(mrb, rdata);
+    r->rdata = (uint8_t *)mrb_str_to_cstr(mrb, rdata);
     return r;
 }
 
@@ -386,7 +495,7 @@ mrb_dns_name_t *mrb_cstr2dns_name(mrb_state *mrb, const char *str) {
     len  = strlen(str);
 
     name->name = (char *)mrb_malloc(mrb, len + 1);
-    name->len = len;
+    name->len  = len;
     strncpy(name->name, str, len + 1);
     return name;
 }

@@ -63,7 +63,7 @@ static mrb_value mrb_dns_codec_decode(mrb_state *mrb, mrb_value self) {
         return mrb_nil_value();
     }
 
-    return query;
+    return mrb_dns_ctype2query(mrb, pkt);
 }
 
 

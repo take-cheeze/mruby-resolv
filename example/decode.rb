@@ -13,4 +13,3 @@ bytes = [ # Header
 
 query = Resolv::DNS::Codec.new.decode(bytes)
 p query
-
