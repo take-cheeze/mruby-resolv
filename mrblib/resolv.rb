@@ -200,6 +200,7 @@ class Resolv
           @klass = klass
           @ttl = ttl
           @rlength = rlength
+          # TODO:  accepting Fixnum
           @rdata = rdata
         end
       end

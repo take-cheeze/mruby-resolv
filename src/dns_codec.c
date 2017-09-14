@@ -195,10 +195,7 @@ int mrb_dns_codec_put_question(mrb_state *mrb, mrb_dns_put_state *putter, mrb_dn
 }
 
 int mrb_dns_codec_put_rdata(mrb_state *mrb, mrb_dns_put_state *putter, mrb_dns_rdata_t *rdata) {
-    if (!rdata) {
-        mrb_raise(mrb, E_ARGUMENT_ERROR, "mrb_dns_codec_put_rdata: empty RData arguments");
-        return -1;
-    }
+    mrb_assert(rdata != NULL);
     if (mrb_dns_codec_put_name(mrb, putter, rdata->name))
         return -1;
     if (mrb_dns_codec_put_uint16be(mrb, putter, rdata->typ))
@@ -215,20 +212,16 @@ int mrb_dns_codec_put_rdata(mrb_state *mrb, mrb_dns_put_state *putter, mrb_dns_r
 }
 
 int mrb_dns_codec_put(mrb_state *mrb, mrb_dns_put_state *putter, mrb_dns_pkt_t *pkt) {
-    if (!putter) {
-        mrb_raise(mrb, E_ARGUMENT_ERROR, "mrb_dns_codec_put: putter is null pointer");
-        return -1;
-    }
     if (!pkt) {
-        mrb_raise(mrb, E_RUNTIME_ERROR, "mrb_dns_codec_put: pkt is null pointer");
+        mrb_raise(mrb, E_RUNTIME_ERROR, "mrb_dns_codec_put: null pkt");
         return -1;
     }
     if (!pkt->header) {
-        mrb_raise(mrb, E_ARGUMENT_ERROR, "mrb_dns_codec_put: pkt->header is null pointer");
+        mrb_raise(mrb, E_ARGUMENT_ERROR, "mrb_dns_codec_put: null pkt.header");
         return -1;
     }
     if (mrb_dns_codec_put_header(mrb, putter, pkt->header)) {
-        mrb_raise(mrb, E_RUNTIME_ERROR, "failure: put packet.header ");
+        mrb_raise(mrb, E_RUNTIME_ERROR, "mrb_dns_codec_put: packet.header failure");
         return -1;
     }
 
@@ -326,23 +319,21 @@ int mrb_dns_codec_get_uint16be(mrb_state *mrb, mrb_dns_get_state *getter, uint16
         return -1;
     }
     ret = w1 << 8 | w2;
-    *w = ret;
+    *w  = ret;
     return 0;
 }
 
 int mrb_dns_codec_get_str(mrb_state *mrb, mrb_dns_get_state *getter, uint64_t size, char *dist) {
     char *d = NULL;
-    if (dist != NULL) {
-        mrb_raise(mrb, E_ARGUMENT_ERROR, "mrb_dns_codec_get_str: dist");
-        return -1;
-    }
-    d = (char *)malloc(size + 1);
+    mrb_assert(dist == NULL);
+    d = (char *)mrb_malloc(mrb, size);
 
     if (getter->pos + size > getter->end) {
-        mrb_raise(mrb, E_RUNTIME_ERROR, "mrb_dns_codec_get_str: reach end fo buffer");
+        mrb_raise(mrb, E_RUNTIME_ERROR, "mrb_dns_codec_get_str: reach end of buffer");
         return -1;
     }
     memcpy(d, getter->buff + getter->pos, size);
+
     getter->pos += size;
     dist = d;
 
@@ -432,11 +423,11 @@ static int mrb_dns_name_append(mrb_state *mrb, mrb_dns_name_t *name, char *node,
     char *buff = NULL;
     size_t l   = 0;
     if (!name) {
-        mrb_raise(mrb, E_ARGUMENT_ERROR, "mrb_dns_name_append: name");
+        mrb_raise(mrb, E_ARGUMENT_ERROR, "mrb_dns_name_append: empty name");
         return -1;
     }
     if (!node) {
-        mrb_raise(mrb, E_ARGUMENT_ERROR, "mrb_dns_name_append: node");
+        mrb_raise(mrb, E_ARGUMENT_ERROR, "mrb_dns_name_append: empty node");
         return -1;
     }
     if (!name->name) {
@@ -475,22 +466,16 @@ int mrb_dns_codec_get_name(mrb_state *mrb, mrb_dns_get_state *getter, mrb_dns_na
     for (mrb_dns_codec_get_uint8(mrb, getter, &len); len > 0;
          mrb_dns_codec_get_uint8(mrb, getter, &len)) {
         if (0xC0 & len) {
-            // size_t pos = 0;
-            // char *node = NULL;
-
+            // TODO: implement compression
             mrb_raise(mrb, E_NOTIMP_ERROR, "mrb_dns_codec_get_name: compression");
             break;
         }
-        if (mrb_dns_codec_get_str(mrb, getter, len, node)) {
+        if (mrb_dns_codec_get_str(mrb, getter, len, node))
             return -1;
-        }
-        if(!node){
-            mrb_raise(mrb, E_RUNTIME_ERROR, "mrb_dns_codec_get_name: return buffe is null");
-        }
-        if (mrb_dns_name_append(mrb, name, node, len)) {
+        if (mrb_dns_name_append(mrb, name, node, len))
             return -1;
-        }
     }
+    ret = name;
     return 0;
 }
 

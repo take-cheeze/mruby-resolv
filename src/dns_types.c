@@ -62,7 +62,7 @@ mrb_dns_pkt_t *mrb_dns_query2cpkt(mrb_state *mrb, mrb_value q) {
         mrb_value an;
         an = mrb_ary_entry(answers, i);
         if (mrb_nil_p(an)) {
-            mrb_raise(mrb, E_RUNTIME_ERROR, "invaild ancount in header");
+            mrb_raise(mrb, E_RUNTIME_ERROR, "query2ctype: pkt.answer");
             return NULL;
         }
 
@@ -321,37 +321,38 @@ mrb_dns_rdata_t *mrb_dns_rdata2ctype(mrb_state *mrb, mrb_value obj) {
     mrb_value name, typ, klass, ttl, rlength, rdata;
     mrb_dns_rdata_t *r = NULL;
     if (mrb_nil_p(obj)) {
-        mrb_raise(mrb, E_RUNTIME_ERROR, "nil value");
+        mrb_raise(mrb, E_ARGUMENT_ERROR, "rdata2ctype: nil value");
         return NULL;
     }
+    // TODO: check obj is kind of RData
     name    = mrb_iv_get(mrb, obj, mrb_intern_lit(mrb, "@name"));
-    typ     = mrb_iv_get(mrb, obj, mrb_intern_lit(mrb, "@type"));
+    typ     = mrb_iv_get(mrb, obj, mrb_intern_lit(mrb, "@typ"));
     klass   = mrb_iv_get(mrb, obj, mrb_intern_lit(mrb, "@klass"));
     ttl     = mrb_iv_get(mrb, obj, mrb_intern_lit(mrb, "@ttl"));
     rlength = mrb_iv_get(mrb, obj, mrb_intern_lit(mrb, "@rlength"));
     rdata   = mrb_iv_get(mrb, obj, mrb_intern_lit(mrb, "@rdata"));
     if (mrb_nil_p(name)) {
-        mrb_raise(mrb, E_RUNTIME_ERROR, "types: empty name in RData");
+        mrb_raise(mrb, E_RUNTIME_ERROR, "rdata2ctype: empty rdata.name");
         return NULL;
     }
     if (mrb_nil_p(typ)) {
-        mrb_raise(mrb, E_RUNTIME_ERROR, "types: empty type in RData");
+        mrb_raise(mrb, E_RUNTIME_ERROR, "rdata2ctype: empty rdata.type");
         return NULL;
     }
     if (mrb_nil_p(klass)) {
-        mrb_raise(mrb, E_RUNTIME_ERROR, "types: empty class in RData");
+        mrb_raise(mrb, E_RUNTIME_ERROR, "rdata2ctype: empty rdata.class");
         return NULL;
     }
     if (mrb_nil_p(ttl)) {
-        mrb_raise(mrb, E_RUNTIME_ERROR, "types: empty ttl in RData");
+        mrb_raise(mrb, E_RUNTIME_ERROR, "rdata2ctype: empty rdata.ttl");
         return NULL;
     }
     if (mrb_nil_p(rlength)) {
-        mrb_raise(mrb, E_RUNTIME_ERROR, "types: empty rlength in RData");
+        mrb_raise(mrb, E_RUNTIME_ERROR, "rdata2ctype: empty rdata.rlength");
         return NULL;
     }
     if ((mrb_nil_p(rdata))) {
-        mrb_raise(mrb, E_RUNTIME_ERROR, "types: empty rdata in RData");
+        mrb_raise(mrb, E_RUNTIME_ERROR, "rdata2ctyep: empty rdata.rdata");
         return NULL;
     }
 
@@ -365,8 +366,9 @@ mrb_dns_rdata_t *mrb_dns_rdata2ctype(mrb_state *mrb, mrb_value obj) {
     r->klass   = mrb_fixnum(klass);
     r->ttl     = mrb_fixnum(ttl);
     r->rlength = mrb_fixnum(rlength);
+    // TODO: String with capa
     r->rdata   = (uint8_t *)mrb_str_to_cstr(mrb, rdata);
-    return NULL;
+    return r;
 }
 
 
